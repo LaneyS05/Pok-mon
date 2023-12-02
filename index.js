@@ -1,3 +1,7 @@
+const mongoose = require("mongoose");
+require("dotenv").config();
+const Pokemon = require("./Models/Pokemon");
+
 async function getPokemon(url) {
   const response = await fetch(url);
   const data = await response.json();
@@ -11,8 +15,30 @@ async function getPokemon(url) {
   };
 }
 
+async function savePokemon(pokemon) {
+  try {
+    await Pokemon.insertMany(pokemon);
+  } catch (error) {
+    console.log("ERROR saving pokemon", error);
+  }
+}
+
 async function main() {
   console.log("START");
+
+  try {
+    await mongoose.connect(process.env.MONGO_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    console.log("DB connected");
+  } catch (error) {
+    console.error(error);
+    process.exit(1);
+  }
+
+  await Pokemon.deleteMany();
+
   const start = performance.now();
   console.log(start);
 
@@ -34,11 +60,20 @@ async function main() {
     }
   }
   const data = await Promise.all(pokemonPromeses);
-  console.log(data);
+
+  const size = 50;
+  const pokemonToSave = [];
+  for (let i = 0; i < data.length; i += size) {
+    pokemonToSave.push(savePokemon(data.slice(i, i + size)));
+  }
+  await Promise.all(pokemonToSave);
+
+  //console.log(data);
 
   const end = performance.now();
   const timeToComplete = end - start;
   console.log("complete", timeToComplete);
+  process.exit(0);
 }
 
 main();
